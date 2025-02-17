@@ -1,104 +1,237 @@
-import Image from "next/image";
+"use client";
 
-import { useMediaQuery } from "@/hooks/use-media-query";
-export default function Home() {
-  const isMobile = useMediaQuery("(max-width: 768px)");
+import React, { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, ExternalLinkIcon, Copy } from "lucide-react";
+import { toast } from "sonner";
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalDescription,
+  ResponsiveModalBody,
+  ResponsiveModalFooter,
+  ResponsiveModalClose
+} from "@/components/ResponsiveModal";
+
+export default function Page() {
+  const [url, setUrl] = useState("");
+  const [tweets, setTweets] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [firecrawlKey, setFirecrawlKey] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [wantsFull, setWantsFull] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasKey = firecrawlKey.length > 0;
+  const isFull = wantsFull && hasKey;
+
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+
+    let inferredUrl = url;
+    if (!inferredUrl.startsWith("http") && !inferredUrl.startsWith("https")) {
+      inferredUrl = `https://${inferredUrl}`;
+    }
+
+    if (!inferredUrl) {
+      toast.error("Please enter a URL.");
+      return;
+    }
+
+    try {
+      new URL(inferredUrl);
+    } catch {
+      toast.error("Please enter a valid URL.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/generate-tweets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ url: inferredUrl, firecrawlKey, wantsFull })
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        setTweets(result.tweets);
+      } else {
+        setError(result.error || "An unknown error occurred.");
+        toast.error(result.error || "An unknown error occurred.");
+      }
+    } catch (e: any) {
+      setError(e.message || "An unknown error occurred.");
+      toast.error(e.message || "An unknown error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  }, [url, firecrawlKey, wantsFull]);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Tweet copied to clipboard!");
+  };
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-100">
+      <div className="w-full max-w-2xl space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <h1 className="text-3xl lg:text-5xl font-semibold font-mono tracking-tight text-center">
+          Tweet Generator
+        </h1>
+        <h2 className="text-center text-balance lg:text-lg mt-2">
+          Generate banger tweets from any website using AI.
+        </h2>
+        <p className="mt-2 text-sm text-gray-600 text-center">
+          Powered by{" "}
+          <a
+            href="https://firecrawl.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            Firecrawl
+          </a>{" "}
+          and{" "}
+          <a
+            href="https://kluster.ai/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            Kluster AI
+          </a>.
+        </p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          <Input
+            placeholder="Enter website URL"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={loading}
+            className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="full-generation-switch"
+                checked={isFull}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setIsModalOpen(true);
+                    setWantsFull(true);
+                  } else {
+                    setWantsFull(false);
+                  }
+                }}
+                disabled={loading}
+              />
+              <Label htmlFor="full-generation-switch">Full Generation</Label>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Generate"
+              )}
+            </Button>
+          </div>
+        </form>
+
+        {error && (
+          <div className="mt-4 text-red-500">
+            {error}
+          </div>
+        )}
+
+        {tweets.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Generated Tweets:</h3>
+            <div className="space-y-4">
+              {tweets.map((tweet, index) => (
+                <div key={index} className="p-4 border rounded-md flex items-start justify-between">
+                  <p className="text-gray-700 break-words flex-1">{tweet}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleCopy(tweet)}
+                    className="p-2 rounded-full hover:bg-gray-200 focus:outline-none"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <ResponsiveModal
+          open={isModalOpen}
+          onOpenChange={(val) => setIsModalOpen(val)}
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <ResponsiveModalContent className="bg-white rounded-lg shadow-xl">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setIsModalOpen(false);
+              }}
+              className="flex flex-col sm:gap-4"
+            >
+              <ResponsiveModalHeader>
+                <ResponsiveModalTitle className="text-lg font-semibold">
+                  Enable Full Generation
+                </ResponsiveModalTitle>
+                <ResponsiveModalDescription className="text-sm text-gray-500">
+                  Please enter your Firecrawl API key to enable the full generation feature.
+                </ResponsiveModalDescription>
+              </ResponsiveModalHeader>
+              <ResponsiveModalBody>
+                <div className="flex flex-col space-y-2">
+                  <Input
+                    disabled={loading}
+                    autoFocus
+                    placeholder="Paste your Firecrawl API key"
+                    value={firecrawlKey}
+                    onChange={(e) => setFirecrawlKey(e.target.value)}
+                    className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <a
+                    href="https://firecrawl.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline inline-flex items-center"
+                  >
+                    Don't have a key? Create Firecrawl account{" "}
+                    <ExternalLinkIcon className="ml-1 h-4 w-4" />
+                  </a>
+                </div>
+              </ResponsiveModalBody>
+              <ResponsiveModalFooter>
+                <ResponsiveModalClose asChild>
+                  <Button
+                    type="submit"
+                    className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                  >
+                    Save and Return
+                  </Button>
+                </ResponsiveModalClose>
+              </ResponsiveModalFooter>
+            </form>
+          </ResponsiveModalContent>
+        </ResponsiveModal>
+      </div>
     </div>
   );
 }
